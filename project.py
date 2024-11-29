@@ -1,7 +1,6 @@
 """
 project.py
 Main entry point for the Raspberry Pi motor control and AI integration project.
-
 Author: Matthew Martin
 Date: 2024-Nov-25
 """
@@ -11,13 +10,13 @@ import os
 import multiprocessing
 import psutil
 import time
+import json
 sys.path.append(os.path.join(os.path.dirname(__file__), "hardware"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "ai"))
-import run_hardware
 from agent_openai import OpenAIAgent
 from simulation import Hardware_Sim
 
-TARGET_ANGLE_IC = 0
+TARGET_ANGLE_IC = -45
 REAL_TIME_CORE = 3
 
 def main_menu():
@@ -31,6 +30,32 @@ def main_menu():
     mode = int(input("Select an option: ").strip())
     print("\n")
     return mode
+
+def get_prompt():
+    """
+    Display prompt type options to the user.
+    """
+    # Load available prompts from the JSON file
+    try:
+        with open("ai/prompts.json", "r") as file:
+            prompts = json.load(file)
+    except FileNotFoundError:
+        print("Error: prompts.json file not found. Please create the file with prompt data.")
+        return None
+    
+    # Allow user to select the type of prompt to use
+    print("\nPrompt type available:")
+    print("1. Overly descriptive")
+    print("2. More to come")
+    choice = input("Enter the number of the prompt type you'd like to use: ").strip()
+
+    # Validate the user's input
+    if choice in prompts:
+        print(f"\nSelected Prompt:\n{prompts[choice]}\n")
+        return prompts[choice]
+    else:
+        print("Invalid selection. Please enter a valid number from the list.")
+        return None
 
 def initialize_system(mode):
     """
@@ -58,27 +83,40 @@ def run_system(mode, pipe_conn):
     """
     if mode == 1:
         print("Starting hardware simulation...")
-        hardware = Hardware_Sim(pipe_conn)
+        hardware = Hardware_Sim(conn=pipe_conn, angle=TARGET_ANGLE_IC)
     elif mode == 2:
         print("Starting motor control...")
-        run_hardware.just_a_test(pipe_conn)
+        
     else:
         print("Enter valid execution mode")
 
 
 def main():
+
     # Initialize and configure user based execution
     print("Welcome to the Motor Control and AI LLM Integration Project!")
     mode = main_menu()
     pipe_conn = initialize_system(mode)
     
-    # Create AI agent and prompt
-    openAIAgent = OpenAIAgent()
+    # Create AI agent and prompt the agent with initial instructions
+    openAIAgent = OpenAIAgent(TARGET_ANGLE_IC)
+    openAIAgent.initial_prompt = get_prompt()  
+    openAIAgent.connect_agent()
+    openAIAgent.initialize_agent() 
+    while openAIAgent.comprehension is None:
+        time.sleep(0.1)
+    if openAIAgent.comprehension == "nok":
+        print("Agent responded with 'nok'. Exiting program.")
+        pipe_conn.close()
+        sys.exit(0)
+    if openAIAgent.comprehension == "ok":
+        print("Agent responded with 'ok'. Hardware interaction starting.")
+    else:
+        print("Agent is not following instructions. Exiting program.")
+        pipe_conn.close()
+        sys.exit(0)
 
-    # Temp code for debug
-    angle_list = [-89, -45, 0, 45, 89 ]
-    i = 0
-
+    # Loop to iteratively interact with the AI agent
     while True:
         time.sleep(1)
         
@@ -89,11 +127,28 @@ def main():
         while pipe_conn.poll():
             distance = pipe_conn.recv()
 
-        # Update AI with latest distance and send new target angle
+        # Update AI agent with latest distance and send new target angle
         print(f"Latest measured distance is " + str(distance))
-        pipe_conn.send(angle_list[i])
-        i += 1
+        openAIAgent.distance = distance
+        openAIAgent.update_angle()
 
+        # Wait for AI agent response
+        while openAIAgent.query_state == False:
+            time.sleep(0.1)
+        openAIAgent.query_state = False
+
+        # Shut down interaction with AI agent
+        if openAIAgent.complete_state == True:
+            openAIAgent.get_agent_logic()
+            break
+
+        # Update hardware target angle
+        pipe_conn.send(openAIAgent.angle)
+    
+    # Shut down application
+    print("AI agent goal complete.  Exiting program.....")
+    pipe_conn.close()
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()

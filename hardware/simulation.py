@@ -7,11 +7,11 @@ import time
 import math
 
 class Hardware_Sim:
-    def __init__(self, pipe_conn, geom_type="line", angle=0):
+    def __init__(self, conn, geom_type="line", angle=0):
         self._geometry = geom_type
         self._angle = float(angle)
-        self._distance = float(0)
-        self.pipe_conn = pipe_conn
+        self._distance = float(14.14)
+        self.pipe_conn = conn
         self.sim_line()
 
     # Getter for angle
