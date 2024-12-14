@@ -9,6 +9,7 @@ Discover how an LLM interacts with a planar spatial environment
 ## Hardware Requirements
  - Raspberry Pi 4B (or compatible model running a Linux embedded system)
  - ST vl53l1x Time of Flight Sensor
+ - Any bipolar hybrid steppor motor with compatible dual H-bridge hardware
 
 ## Software Requirements
  - Python 3.11 or greater
@@ -19,22 +20,35 @@ Discover how an LLM interacts with a planar spatial environment
 ## Installation
  - Ensure you have `gcc`, `make`, and other necessary tools installed.
  - Navigate to 'libraries/VL53L1X/STSW-IMG013/user_lib' and build the STSW-IMG013 driver using make
+ - Navigate to 'libraries/Stepper_Motor_Hybrid and build the stepper motor driver using make
 
 ## Code and Directory Structure
 LLM-spatial-scanner/
-├──project.py
-│   ├──ai
-│   │   ├──agent_base.py
-│   │   ├──agent_openai.py
-│   │   ├──prompts.json
-│   ├──hardware
-│   │   ├──run_hardware.py
-│   │   ├──simulation.py
-│   │   ├──VL53L1_wrapper.py
-│   ├──libraries
-│   │   ├──VL53L1X
-│   │   │   ├──STSW-IMG013
-│   │   │   │   ├──user_lib
-│   │   │   │   │   ├──Makefile
+├── project.py
+├── ai
+│   ├── agent_base.py
+│   ├── agent_openai.py
+│   ├── prompts.json
+├── hardware
+│   ├── run_hardware.py
+│   ├── simulation.py
+│   ├── VL53L1_wrapper.py
+├── libraries
+│   ├── VL53L1X
+│   │   ├── STSW-IMG013
+│   │   │   ├── user_lib
+│   │   │   │   ├── Makefile
+│   ├── Stepper_Motor_Hybrid
+│   │   ├── include
+│   │   │   ├── motor_control_api.h
+│   │   │   ├── motor_gpio.h
+│   │   │   ├── motor_timing.h
+│   │   ├── src
+│   │   │   ├── motor_control_api.c
+│   │   │   ├── motor_gpio.c
+│   │   │   ├── motor_timing.c
+│   │   ├── main.c
+│   │   ├── Makefile
+
     
 ## Usage
