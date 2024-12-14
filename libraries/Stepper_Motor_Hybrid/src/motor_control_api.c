@@ -18,6 +18,9 @@
 // GPIO Initialization output states to ensure no current is going through the motor windings
 enum gpiod_line_value gpio_initial_states[] = {GPIOD_LINE_VALUE_INACTIVE, GPIOD_LINE_VALUE_INACTIVE, GPIOD_LINE_VALUE_INACTIVE, GPIOD_LINE_VALUE_INACTIVE};
 
+/* Instantiate motor instance for global access */
+Motor_State_t *motor_state = NULL;
+
 int driver_init(const char* gpiochip_name, const unsigned int* gpio_pins) 
 {
     int gpio_status = gpio_init(gpiochip_name, gpio_pins);
@@ -33,24 +36,28 @@ int driver_init(const char* gpiochip_name, const unsigned int* gpio_pins)
     return 0;
 }
 
-Motor_State_t* motor_init(float speed) 
+int motor_init(float speed) 
 {
+    motor_state = malloc(sizeof(Motor_State_t));
+    if (!motor_state) {
+        return -1; // Handle memory allocation failure
+    }
+
     // Initialize motor states
-    Motor_State_t *motor_state = malloc(sizeof(Motor_State_t));
     motor_state->operational = false;
     motor_state->speed = speed;
     motor_state->position = 0;
     motor_state->last_step = 0;
 
-    return motor_state;
+    return 0;
 }
 
 
-int motor_set_position_full_step(Motor_State_t* motor_state, int position) 
+int motor_set_position_full_step(float position) 
 {
     // Drive motor
     int step_type = 1;
-    int status = motor_drive(motor_state, step_type, position);
+    int status = motor_drive(step_type, position);
     if (status){
         return -1;
     }
@@ -58,11 +65,11 @@ int motor_set_position_full_step(Motor_State_t* motor_state, int position)
     return 0;
 }
 
-int motor_set_position_half_step(Motor_State_t* motor_state, int position) 
+int motor_set_position_half_step(float position) 
 {
     // Drive motor
     int step_type = 2;
-    int status = motor_drive(motor_state, step_type, position);
+    int status = motor_drive(step_type, position);
     if (status){
         return -1;
     }
@@ -71,19 +78,15 @@ int motor_set_position_half_step(Motor_State_t* motor_state, int position)
 }
 
 
-int motor_stop(Motor_State_t* motor_state) 
+int motor_stop(void) 
 {
-    if (!motor_state) {
-        return -1;
-    }
-    
     // Set GPIOs to inactive
     int initial_status = gpio_set_states(gpio_initial_states);
     if (initial_status){
         return -1;
     }
 
-    // Memory cleanup
+    // Clean up memory
     free(motor_state);
     motor_state = NULL;
 

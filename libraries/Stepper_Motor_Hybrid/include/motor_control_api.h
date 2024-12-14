@@ -19,24 +19,6 @@
 #include "motor_gpio.h"
 
 
-/*
- * @struct Motor_State_t
- * @brief Represents the state of a motor.
- *
- * This structure is used to track and modify the state of a motor,
- * including whether it is operational, its current speed, and its position.
- * It is typically managed dynamically using the API functions provided.
- */
-typedef struct 
-{
-    bool operational;
-    float speed;
-    int position;
-    int last_step;
-    
-} Motor_State_t;
-
-
 /* 
  * Initializes the motor control drive system.
  * 
@@ -52,7 +34,7 @@ int driver_init(const char* gpiochip_name, const unsigned int* gpio_pins);
  * Parameters:
  *     speed - The desired motor speed in steps per second.
  */
-Motor_State_t* motor_init(float speed);
+int motor_init(float speed);
 
 /*
  * Moves the motor to a specified target position using full step mode.
@@ -60,7 +42,7 @@ Motor_State_t* motor_init(float speed);
  * Parameters:
  *     position - The desired target position in steps.
  */
-int motor_set_position_full_step(Motor_State_t* motor_state, int position);
+int motor_set_position_full_step(float position);
 
 /*
  * Moves the motor to a specified target position using half step motor control.
@@ -68,13 +50,13 @@ int motor_set_position_full_step(Motor_State_t* motor_state, int position);
  * Parameters:
  *     position - The desired target position in steps.
  */
-int motor_set_position_half_step(Motor_State_t* motor_state, int position);
+int motor_set_position_half_step(float position);
 
 /*
  * Stops motor operation and halts all movement.
  * Stops energizing all motor phases.
  * Cleans up motor control resources, including GPIOs and memory.
  */
-int motor_stop(Motor_State_t* motor_state);
+int motor_stop(void);
 
 #endif // MOTOR_CONTROL_API_H

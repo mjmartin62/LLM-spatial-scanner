@@ -26,7 +26,7 @@ motor_driver_test: $(SRC_OBJ) $(MAIN_OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) -lpthread $(LFLAGS)
 
 # Build the shared library
-motor_driver.so: $(CORE_OBJ) $(PLTF_OBJ)
+motor_driver.so: $(SRC_OBJ) $(MAIN_OBJ)
 	$(CC) -shared -o $@ $^ $(CFLAGS) -lpthread $(LFLAGS)
 
 clean:

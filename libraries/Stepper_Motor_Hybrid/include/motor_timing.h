@@ -11,6 +11,22 @@
 
 #include "motor_control_api.h"
 
+/*
+ * @struct Motor_State_t
+ * @brief Represents the state of a motor.
+ *
+ * This structure is used to track and modify the state of a motor,
+ * including whether it is operational, its current speed, and its position.
+ * It is typically managed dynamically using the API functions provided.
+ */
+typedef struct 
+{
+    bool operational;
+    float speed;
+    int position;
+    int last_step;
+    
+} Motor_State_t;
 
 /*
  * @struct Motor_full_step_logic_t
@@ -24,6 +40,7 @@ typedef struct {
     enum gpiod_line_value gpio_step2[4];
     enum gpiod_line_value gpio_step3[4];
 } Motor_full_step_logic_t;
+
 
 /*
  * @struct Motor_half_step_logic_t
@@ -52,4 +69,4 @@ typedef struct {
   * Returns:
  *     0 on success, -1 on failure.
  */
-int motor_drive(Motor_State_t* motor_state, int step_type, int position);
+int motor_drive(int step_type, float position);

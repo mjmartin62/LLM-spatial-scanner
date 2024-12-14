@@ -14,6 +14,8 @@
 #include <math.h>
 #include <unistd.h>
 
+extern Motor_State_t *motor_state;
+
 /* GPIO state control logic */
 // Full Step Logic
 Motor_full_step_logic_t motor_full_step_logic = {
@@ -34,14 +36,14 @@ Motor_half_step_logic_t motor_half_step_logic = {
     .gpio_step7 = {GPIOD_LINE_VALUE_ACTIVE, GPIOD_LINE_VALUE_INACTIVE, GPIOD_LINE_VALUE_ACTIVE, GPIOD_LINE_VALUE_INACTIVE}
 };
 
-int motor_drive(Motor_State_t* motor_state, int step_type, int position)
+int motor_drive(int step_type, float position)
 {
     
     // Full step motor control
     if (step_type == 1)
     {
         float full_step_size = 1.8;
-        int full_step_num_steps = abs(position) / full_step_size;
+        float full_step_num_steps = abs(position) / full_step_size;
         int pause_us = (int)(1e6 / (motor_state->speed) * full_step_size);
         int last_step = motor_state->last_step;
         int executed_steps = 0;
@@ -87,7 +89,7 @@ int motor_drive(Motor_State_t* motor_state, int step_type, int position)
     else if (step_type == 2)
     {
         float half_step_size = 0.9;
-        int half_step_num_steps = abs(position) / half_step_size;
+        float half_step_num_steps = abs(position) / half_step_size;
         int pause_us = (int)(1e6 / (motor_state->speed) * half_step_size);
         int last_step = motor_state->last_step;
         int executed_steps = 0;

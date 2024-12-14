@@ -13,8 +13,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdio.h>
-
 
 int main(void)
 {
@@ -24,23 +22,39 @@ int main(void)
     printf("Driver initialization complete with status: %d\n", status);
 
     // Initialize the motor with target speed setting
-    Motor_State_t *motor_state = motor_init(720);
+    int motor_init_status = motor_init(720);
+    printf("Motor initialization complete with status: %d\n", motor_init_status);
 
-   for (int i = 0; i < 5; i++)
-   {
-        int status_fullstep_position = motor_set_position_full_step(motor_state, 360);
-        printf("Motor positioning complete with status: %d\n", status_fullstep_position);
-   }
+    // Test full step
+    for (int i = 0; i < 2; i++)
+    {
+            int status_01 = motor_set_position_full_step(360);
+            printf("Motor positioning complete with status: %d\n", status_01);
+    }
 
 
-   for (int i = 0; i < 5; i++)
-   {
-        int status_halfstep_position = motor_set_position_half_step(motor_state, 360);
-        printf("Motor positioning complete with status: %d\n", status_halfstep_position);
-   }
+    for (int i = 0; i < 2; i++)
+    {
+            int status_02 = motor_set_position_full_step(-360);
+            printf("Motor positioning complete with status: %d\n", status_02);
+    }
+
+    // Test half step
+    for (int i = 0; i < 2; i++)
+    {
+            int status_03 = motor_set_position_half_step(360);
+            printf("Motor positioning complete with status: %d\n", status_03);
+    }
+
+
+    for (int i = 0; i < 2; i++)
+    {
+            int status_04 = motor_set_position_half_step(-360);
+            printf("Motor positioning complete with status: %d\n", status_04);
+    }
 
 
     // Free motor
-    int stop_status = motor_stop(motor_state);
+    int stop_status = motor_stop();
     printf("Motor stopped with status: %d\n", stop_status);
 }
