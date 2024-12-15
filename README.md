@@ -21,6 +21,7 @@ Discover how an LLM interacts with a planar spatial environment
  - Ensure you have `gcc`, `make`, and other necessary tools installed.
  - Navigate to 'libraries/VL53L1X/STSW-IMG013/user_lib' and build the STSW-IMG013 driver using make
  - Navigate to 'libraries/Stepper_Motor_Hybrid and build the stepper motor driver using make
+ - If using openAI API, create an environment variable called:  OPENAI_API_KEY
 
 ## Code and Directory Structure
 LLM-spatial-scanner/

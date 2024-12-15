@@ -11,29 +11,36 @@ import multiprocessing
 import psutil
 import time
 import json
+import argparse
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "hardware"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "ai"))
 from agent_openai import OpenAIAgent
 from simulation import Hardware_Sim
 
-TARGET_ANGLE_IC = -45
+TARGET_ANGLE_IC = 0
 REAL_TIME_CORE = 3
 
-def main_menu():
+def parse_arguments():
     """
-    Display the main menu and handle user input.
+    Parse command-line arguments.
     """
-    print("\nMain Menu:")
-    print("Execution mode options:")
-    print("1. Run AI with Hardware Simulation")
-    print("2. Run AI with Real Hardware")
-    mode = int(input("Select an option: ").strip())
-    print("\n")
-    return mode
+    parser = argparse.ArgumentParser(
+        description="Motor Control and AI Integration Project."
+    )
+    parser.add_argument(
+        "-m", "--mode", type=int, choices=[1, 2], required=True,
+        help="Execution mode: 1 for hardware simulation, 2 for real hardware."
+    )
+    parser.add_argument(
+        "-p", "--prompt", type=int, choices=[1, 2], required=True,
+        help="Specify the prompt type to use (1 for Overly Descriptive, 2 for more to come)."
+    )
+    return parser.parse_args()
 
-def get_prompt():
+def get_prompt(prompt):
     """
-    Display prompt type options to the user.
+    Load prompt type.
     """
     # Load available prompts from the JSON file
     try:
@@ -42,19 +49,13 @@ def get_prompt():
     except FileNotFoundError:
         print("Error: prompts.json file not found. Please create the file with prompt data.")
         return None
-    
-    # Allow user to select the type of prompt to use
-    print("\nPrompt type available:")
-    print("1. Overly descriptive")
-    print("2. More to come")
-    choice = input("Enter the number of the prompt type you'd like to use: ").strip()
 
     # Validate the user's input
-    if choice in prompts:
-        print(f"\nSelected Prompt:\n{prompts[choice]}\n")
-        return prompts[choice]
+    if prompt in prompts:
+        print(f"\nSelected Prompt:\n{prompts[prompt]}\n")
+        return prompts[prompt]
     else:
-        print("Invalid selection. Please enter a valid number from the list.")
+        print("Invalid prompt. Please update promp library.")
         return None
 
 def initialize_system(mode):
@@ -75,7 +76,7 @@ def initialize_system(mode):
     p = psutil.Process(pid)
     p.cpu_affinity([REAL_TIME_CORE])  
 
-    return parent_conn
+    return parent_conn, realtime_process
 
 def run_system(mode, pipe_conn):
     """
@@ -90,17 +91,30 @@ def run_system(mode, pipe_conn):
     else:
         print("Enter valid execution mode")
 
+def system_shutdown(pipe_conn, realtime_process):
+    '''
+    Returns hardware to starting position
+    Gracefully shuts down applications
+    '''
+    print("AI agent goal complete.  Exiting program.....")
+    pipe_conn.send(TARGET_ANGLE_IC)
+    time.sleep(1)
+    pipe_conn.close()
+    realtime_process.terminate()
+    realtime_process.join()
+    sys.exit(0)
 
 def main():
 
-    # Initialize and configure user based execution
-    print("Welcome to the Motor Control and AI LLM Integration Project!")
-    mode = main_menu()
-    pipe_conn = initialize_system(mode)
+    # Parse input arguments for application flow control
+    args = parse_arguments()
+
+    # Initialize the system and configure based on CLI arguments
+    pipe_conn, realtime_process = initialize_system(args.mode)
     
     # Create AI agent and prompt the agent with initial instructions
     openAIAgent = OpenAIAgent(TARGET_ANGLE_IC)
-    openAIAgent.initial_prompt = get_prompt()  
+    openAIAgent.initial_prompt = get_prompt(str(args.prompt))  
     openAIAgent.connect_agent()
     openAIAgent.initialize_agent() 
     while openAIAgent.comprehension is None:
@@ -146,9 +160,7 @@ def main():
         pipe_conn.send(openAIAgent.angle)
     
     # Shut down application
-    print("AI agent goal complete.  Exiting program.....")
-    pipe_conn.close()
-    sys.exit(0)
+    system_shutdown(pipe_conn, realtime_process)
 
 if __name__ == "__main__":
     main()

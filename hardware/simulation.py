@@ -10,7 +10,7 @@ class Hardware_Sim:
     def __init__(self, conn, geom_type="line", angle=0):
         self._geometry = geom_type
         self._angle = float(angle)
-        self._distance = float(14.14)
+        self._distance = round(float(10.00), 1)
         self.pipe_conn = conn
         self.sim_line()
 
@@ -56,7 +56,7 @@ class Hardware_Sim:
                 time.sleep(0.1)
             while self.pipe_conn.poll():
                 self.angle = float(self.pipe_conn.recv())
-                self.distance = 10 / math.cos(self.angle * math.pi / 180)
+                self.distance = round(10 / math.cos(self.angle * math.pi / 180), 1)
 
 
 

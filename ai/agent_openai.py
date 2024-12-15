@@ -4,17 +4,21 @@ openai api interface
 from agent_base import AIBase
 from openai import OpenAI
 import re
+import os
 
 class OpenAIAgent(AIBase):
     def __init__(self, angle):
         super().__init__(angle)
-        self.api_key = "TBD"
+        self._api_key = None
         self._client = None
         self._context = []
 
     # Initialize API connection
+    _api_key = os.getenv("OPENAI_API_KEY")
+    if not _api_key:
+        raise ValueError("API key not found. Make sure OPENAI_API_KEY is set as an environment variable.")
     def connect_agent(self):
-        self._client = OpenAI(api_key=self.api_key)
+        self._client = OpenAI(api_key=self._api_key)
 
     def initialize_agent(self):
         try:
