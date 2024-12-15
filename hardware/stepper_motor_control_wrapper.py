@@ -55,6 +55,10 @@ class Stepper_Motor:
         self._lib.motor_set_position_half_step.argtypes = [ctypes.c_float]
         self._lib.motor_set_position_half_step.restype = ctypes.c_int
 
+        # Stop motor
+        self._lib.motor_stop.argtypes = []
+        self._lib.motor_stop.restype = ctypes.c_int
+
         
     def _driver_init(self):
         '''
@@ -98,6 +102,16 @@ class Stepper_Motor:
         else:
             raise RuntimeError(f"Motor half step positioning failed with status: {status}")
 
+    def motor_stop(self):
+        '''
+        Halt current to the motor and clean up memory
+        '''
+        status = self._lib.motor_stop()
+        if status == 0:
+            print("Motor stop complete....")
+        else:
+            raise RuntimeError(f"Motor sotp failed with status: {status}")
+
 if __name__ == "__main__":
     
     print("Starting coms....")
@@ -107,3 +121,4 @@ if __name__ == "__main__":
     stepper_motor.motor_set_position_half_step(-180)
     time.sleep(1)
     stepper_motor.motor_set_position_half_step(180)
+    stepper_motor.motor_stop()
