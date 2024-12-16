@@ -19,6 +19,8 @@ class ToF_Sensor:
         self._dataReady = ctypes.c_uint8(0)
         self._dev = ctypes.c_uint16()
         self._status = int()
+        self._ROI_x = ctypes.c_uint16()
+        self._ROI_x = ctypes.c_uint16()
 
         # Software version storage information
         class _vl53l1x_version_t(ctypes.Structure):
@@ -46,7 +48,6 @@ class ToF_Sensor:
         self._bind_functions()
         self._initialize_i2c()
         self._initialize_sensor()
-        self._initialize_ranging()
 
     def _bind_functions(self):
         '''
@@ -80,6 +81,10 @@ class ToF_Sensor:
         self._lib.VL53L1X_ClearInterrupt.argtypes = [ctypes.c_uint16]
         self._lib.VL53L1X_ClearInterrupt.restype = ctypes.c_int8
 
+        # Configure the sensor field of view (aka region of interest)
+        self._lib.VL53L1X_SetROI.argtypes = [ctypes.c_uint16, ctypes.c_uint16, ctypes.c_uint16]
+        self._lib.VL53L1X_SetROI.restype = ctypes.c_int8
+
     def get_software_version(self):
         '''
         Retrieves driver software version
@@ -111,7 +116,7 @@ class ToF_Sensor:
         else:
             raise RuntimeError(f"Sensor initialization failed with status: {self._status}")
         
-    def _initialize_ranging(self):
+    def initialize_ranging(self):
         '''
         Starts the distance measurement function
         '''
@@ -121,7 +126,7 @@ class ToF_Sensor:
         else:
             raise RuntimeError(f"Ranging initialization failed with status: {self._status}")
         
-    def check_for_data(self):
+    def _check_for_data(self):
         '''
         Checks device register if new data is ready to be retrieved
         '''
@@ -131,22 +136,17 @@ class ToF_Sensor:
             time.sleep(0.1)
         return self._status
 
-    def get_new_data(self):
+    def _get_new_data(self):
         '''
         Extracts distance releated data from the sensor
         '''
         self._status = self._lib.VL53L1X_GetResult(self._dev, ctypes.byref(self._vl53l1x_result_t))
         if self._status == 0:
-            return {
-            "Distance": self._vl53l1x_result_t.Distance,
-            "Ambient": self._vl53l1x_result_t.Ambient,
-            "SigPerSPAD": self._vl53l1x_result_t.SigPerSPAD,
-            "NumSPADs": self._vl53l1x_result_t.NumSPADs,
-        }
+            return None
         else:
             raise RuntimeError(f"Data retrieval failed with status: {self._status}")
 
-    def trigger_interrupt(self):
+    def _trigger_interrupt(self):
         '''
         Trigger sensor to ready for new data measurements
         '''
@@ -155,21 +155,53 @@ class ToF_Sensor:
             return None
         else:
             raise RuntimeError(f"Sensor trigger failed with status: {self._status}")
+        
+    def poll_sensor(self):
+        '''
+        Poll readings from sensor and store updated measurements
+        '''
+        self._check_for_data()
+        self._get_new_data()
+        self._trigger_interrupt()
 
+        return {
+            "Distance": self._vl53l1x_result_t.Distance,
+            "Ambient": self._vl53l1x_result_t.Ambient,
+            "SigPerSPAD": self._vl53l1x_result_t.SigPerSPAD,
+            "NumSPADs": self._vl53l1x_result_t.NumSPADs,
+        }
+
+    def set_roi(self, x, y):
+        '''
+        Configure the sensor field of view
+        '''
+        self._ROI_x = ctypes.c_uint16(x)
+        self._ROI_y = ctypes.c_uint16(y)
+        self._status = self._lib.VL53L1X_SetROI(self._dev, self._ROI_x, self._ROI_y)
+        if self._status == 0:
+            return None
+        else:
+            raise RuntimeError(f"Sensor ROI update failed with status: {self._status}")
     
 
 if __name__ == "__main__":
     
     print("Starting coms....")
+
+    # Initialize the sensor
     tof = ToF_Sensor(i2c_bus=1, i2c_addr=0x29)
+
+    # Config sensor measurement parameters
+    tof.set_roi(4, 4)
+
+    # Start sensor measurement function
+    tof.initialize_ranging()
     
     try:
         while(1):
-            tof.check_for_data()
-            result = tof.get_new_data()
+            result = tof.poll_sensor()
             print(f"{'Distance':>10} {'Ambient':>10} {'SigPerSPAD':>15} {'NumSPADs':>10}")
             print(f"{result['Distance']:>10} {result['Ambient']:>10} {result['SigPerSPAD']:>15} {result['NumSPADs']:>10}")
-            tof.trigger_interrupt()
-            time.sleep(1)
+            time.sleep(.25)
     except KeyboardInterrupt:
         print("Stopping sensor")
