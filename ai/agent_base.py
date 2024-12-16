@@ -1,6 +1,8 @@
 """
 Base class to serve derived agents 
 """
+from abc import ABC, abstractmethod
+
 class AIBase:
     """
     Initialize the LLM with configurable prompts and hardware states
@@ -15,6 +17,28 @@ class AIBase:
         self._complete_state = False
         self._query_state = False
         self._ai_logic = None
+
+    
+    @abstractmethod
+    def initialize_agent(self):
+        '''
+        Initializes agent with ai model specific requirements
+        '''
+        pass
+
+    @abstractmethod
+    def update_angle(self):
+        '''
+        Querry agent to update the target angle
+        '''
+        pass
+
+    @abstractmethod
+    def get_agent_logic(self):
+        '''
+        Querry agent to ask its logic for achieving its goal
+        '''
+        pass
 
     # Getter for angle
     @property

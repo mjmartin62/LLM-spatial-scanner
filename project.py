@@ -36,6 +36,10 @@ def parse_arguments():
         "-p", "--prompt", type=int, choices=[1, 2], required=True,
         help="Specify the prompt type to use (1 for Overly Descriptive, 2 for more to come)."
     )
+    parser.add_argument(
+        "-a", "--agent", type=str, required=True,
+        help="Specify the ai agent type to use (openAI or openAI model 4o)."
+    )
     return parser.parse_args()
 
 def get_prompt(prompt):
@@ -104,8 +108,38 @@ def system_shutdown(pipe_conn, realtime_process):
     realtime_process.join()
     sys.exit(0)
 
-def main():
+def initialize_agent(pipe_conn, args):
+    """
+    Inititialize AI agent and start communication.
+    """
+    # Instantiate AI agent with desired model
+    if args.agent == "openAI":
+        print("Initializing openAI agent...")
+        aiAgent = OpenAIAgent(TARGET_ANGLE_IC)      
+    else:
+        print("Enter valid ai agent model")
 
+    # Start communication with ai agent
+    aiAgent.initial_prompt = get_prompt(str(args.prompt))  
+    aiAgent.connect_agent()
+    aiAgent.initialize_agent() 
+    while aiAgent.comprehension is None:
+        time.sleep(0.1)
+    if aiAgent.comprehension == "nok":
+        print("Agent responded with 'nok'. Exiting program.")
+        pipe_conn.close()
+        sys.exit(0)
+    if aiAgent.comprehension == "ok":
+        print("Agent responded with 'ok'. Hardware interaction starting.")
+    else:
+        print("Agent is not following instructions. Exiting program.")
+        aiAgent.close()
+        sys.exit(0)
+
+    return aiAgent
+
+def main():
+    
     # Parse input arguments for application flow control
     args = parse_arguments()
 
@@ -113,22 +147,7 @@ def main():
     pipe_conn, realtime_process = initialize_system(args.mode)
     
     # Create AI agent and prompt the agent with initial instructions
-    openAIAgent = OpenAIAgent(TARGET_ANGLE_IC)
-    openAIAgent.initial_prompt = get_prompt(str(args.prompt))  
-    openAIAgent.connect_agent()
-    openAIAgent.initialize_agent() 
-    while openAIAgent.comprehension is None:
-        time.sleep(0.1)
-    if openAIAgent.comprehension == "nok":
-        print("Agent responded with 'nok'. Exiting program.")
-        pipe_conn.close()
-        sys.exit(0)
-    if openAIAgent.comprehension == "ok":
-        print("Agent responded with 'ok'. Hardware interaction starting.")
-    else:
-        print("Agent is not following instructions. Exiting program.")
-        pipe_conn.close()
-        sys.exit(0)
+    aiAgent = initialize_agent(pipe_conn, args)
 
     # Loop to iteratively interact with the AI agent
     while True:
@@ -143,21 +162,21 @@ def main():
 
         # Update AI agent with latest distance and send new target angle
         print(f"Latest measured distance is " + str(distance))
-        openAIAgent.distance = distance
-        openAIAgent.update_angle()
+        aiAgent.distance = distance
+        aiAgent.update_angle()
 
         # Wait for AI agent response
-        while openAIAgent.query_state == False:
+        while aiAgent.query_state == False:
             time.sleep(0.1)
-        openAIAgent.query_state = False
+        aiAgent.query_state = False
 
         # Shut down interaction with AI agent
-        if openAIAgent.complete_state == True:
-            openAIAgent.get_agent_logic()
+        if aiAgent.complete_state == True:
+            aiAgent.get_agent_logic()
             break
 
         # Update hardware target angle
-        pipe_conn.send(openAIAgent.angle)
+        pipe_conn.send(aiAgent.angle)
     
     # Shut down application
     system_shutdown(pipe_conn, realtime_process)
