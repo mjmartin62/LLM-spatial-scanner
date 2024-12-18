@@ -17,6 +17,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "hardware"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "ai"))
 from agent_openai import OpenAIAgent
 from simulation import Hardware_Sim
+from run_hardware import Hardware_Control
 
 TARGET_ANGLE_IC = 0
 REAL_TIME_CORE = 3
@@ -33,7 +34,7 @@ def parse_arguments():
         help="Execution mode: 1 for hardware simulation, 2 for real hardware."
     )
     parser.add_argument(
-        "-p", "--prompt", type=int, choices=[1, 2], required=True,
+        "-p", "--prompt", type=int, choices=[1, 2, 3], required=True,
         help="Specify the prompt type to use (1 for Overly Descriptive, 2 for more to come)."
     )
     parser.add_argument(
@@ -70,31 +71,68 @@ def initialize_system(mode):
     """
     print("Initializing system...")
     
-    # Instantiate a parallel child process and data pipe
+    # Instantiate a parallel child subprocess and data pipe
     parent_conn, child_conn = multiprocessing.Pipe()
     realtime_process = multiprocessing.Process(target=run_system, args=(mode, child_conn,))
     realtime_process.start()
-    
+        
+    # Error handling for the run_system subprocess
+    # Kill process if errors occur during startup
+    # Continue process if no errors occur and pin subprocess to dedicated core
+    if realtime_process.exitcode is None:
+        print("System initialized successfully.")
+        pid = realtime_process.pid
+        p = psutil.Process(pid)
+        p.cpu_affinity([REAL_TIME_CORE])  
+        hardware_status = 0
+    elif realtime_process.exitcode == 1:
+        print("System initialization failed: Hardware initialization error.")
+        hardware_status = -1
+    elif realtime_process.exitcode == 2:
+        print("System initialization failed: Invalid mode.")
+        hardware_status = -2
+    elif realtime_process.exitcode == 3:
+        print("System initialization failed: Unexpected error.")
+        hardware_status = -3
+    else:
+        print("System initialization failed: Unknown error.")
+        hardware_status = -4
+
+
     # Assign realtime hardware to dedicate core
     pid = realtime_process.pid
     p = psutil.Process(pid)
     p.cpu_affinity([REAL_TIME_CORE])  
 
-    return parent_conn, realtime_process
+    return parent_conn, realtime_process, hardware_status
 
 def run_system(mode, pipe_conn):
     """
-    Motor control and environmental sensing.
+    Motor control and environmental sensing subprocess.
+    Process is killed if the hardware initialization fails.
     """
-    if mode == 1:
-        print("Starting hardware simulation...")
-        hardware = Hardware_Sim(conn=pipe_conn, angle=TARGET_ANGLE_IC)
-    elif mode == 2:
-        print("Starting motor control...")
-        
-    else:
-        print("Enter valid execution mode")
-
+    try:
+        if mode == 1:
+            print("Starting hardware simulation...")
+            hardware = Hardware_Sim(conn = pipe_conn, angle = TARGET_ANGLE_IC)
+        elif mode == 2:
+            hardware = Hardware_Control(conn = pipe_conn, initial_angle = TARGET_ANGLE_IC, motor_speed = 90, gpio_pins = [17, 27, 23, 24])
+            print("Starting proximity sensing and motor control...")
+        else:
+            raise ValueError("Invalid mode")
+    
+        print("Hardware initialization successful. Subprocess is now running.")
+    
+    except RuntimeError as e:
+        print(f"Hardware initialization error: {e}")
+        os._exit(1)
+    except ValueError as e:
+        print(f"Invalid mode: {e}")
+        os._exit(2)
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        os._exit(3)
+    
 def system_shutdown(pipe_conn, realtime_process):
     '''
     Returns hardware to starting position
@@ -144,7 +182,7 @@ def main():
     args = parse_arguments()
 
     # Initialize the system and configure based on CLI arguments
-    pipe_conn, realtime_process = initialize_system(args.mode)
+    pipe_conn, realtime_process, hardware_status = initialize_system(args.mode)
     
     # Create AI agent and prompt the agent with initial instructions
     aiAgent = initialize_agent(pipe_conn, args)
@@ -156,7 +194,7 @@ def main():
         # Retrieve proximity distance from hardware; configure pipe as LIFO and then flush
         distance = None
         while not pipe_conn.poll():
-            time.sleep(0.5)
+            time.sleep(0.1)
         while pipe_conn.poll():
             distance = pipe_conn.recv()
 
