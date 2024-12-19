@@ -76,8 +76,6 @@ class OpenAIAgent(AIBase):
                 if match:
                     extracted_value = float(match.group(1))
                     self.angle = float(extracted_value)
-
-                    print(self._context)
             else:
                 self.angle = float(resp)
             

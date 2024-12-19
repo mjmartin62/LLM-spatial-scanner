@@ -7,7 +7,7 @@ from VL53L1_wrapper import ToF_Sensor
 from stepper_motor_control_wrapper import Stepper_Motor
 
 class Hardware_Control():
-    def __init__(self, conn, i2c_bus = 1, i2c_addr = 0x29, gpio_pins = [0, 0, 0, 0], initial_angle = 0, motor_speed = 0):
+    def __init__(self, conn, ipc_status_flag, i2c_bus = 1, i2c_addr = 0x29, gpio_pins = [0, 0, 0, 0], initial_angle = 0, motor_speed = 0):
         self.pipe_conn = conn
         self._polling_period = 0.1
         self._sensor_all_data = None
@@ -22,6 +22,7 @@ class Hardware_Control():
         self._motor_speed = motor_speed
         self._stepper_motor = None 
         self._tof = None
+        self._ipc_status_flag = ipc_status_flag
 
         # Initialize and execute hardware control
         # Raise error to control process exit in calling function
@@ -86,7 +87,7 @@ class Hardware_Control():
             except Exception as e:
                 print(f"An unexpected error occurred during hardware transition: {e}")
 
-            # Set motor position.  Note that commanded position is updated to the motor precision.
+            # Set motor position.  Note that commanded position is updated according to the motor precision.
             try:
                 self._rotate = round((self._new_angle - self._last_angle) / self._rotate_precision, 0) * self._rotate_precision
                 self._last_angle = self._last_angle + self._rotate
@@ -98,8 +99,20 @@ class Hardware_Control():
             except Exception as e:
                 print(f"An unexpected error occurred during hardware transition: {e}")
 
+            # Check IPC status flag
+            if self._ipc_status_flag.value == 1:
+                self._shutdown()
+
             if test_mode == "on":
                 break
+
+    def _shutdown(self):
+        '''
+        Shut down motor and flag parent process it is safe to kill this subprocess
+        '''
+        print("Shutting down all hardware...")
+        self._stepper_motor.motor_stop()
+        self._ipc_status_flag.value = 2
 
 if __name__ == "__main__":
     pass
