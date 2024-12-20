@@ -90,7 +90,9 @@ class OpenAIAgent(AIBase):
             print("Querying OpenAI logic...")
             user_message = {
                     "role": "user",
-                    "content": "In 200 words or less, tell me your logic used to achieve the stated goal",
+                    "content":  "In 200 words or less, tell me your logic used to achieve the stated goal." \
+                                " Also, create a table that has two colums:  One column has the angle of the proximity sensor," \
+                                " and the other column has the measured distance at that angle.",
                 }
             self._context.append(user_message)
             chat_completion = self._client.chat.completions.create(

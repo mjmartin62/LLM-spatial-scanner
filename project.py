@@ -34,7 +34,7 @@ def parse_arguments():
         help="Execution mode: 1 for hardware simulation, 2 for real hardware."
     )
     parser.add_argument(
-        "-p", "--prompt", type=int, choices=[1, 2, 3], required=True,
+        "-p", "--prompt", type=int, choices=[1, 2, 3, 4, 5, 6], required=True,
         help="Specify the prompt type to use (1 for Overly Descriptive, 2 for more to come)."
     )
     parser.add_argument(
@@ -74,40 +74,44 @@ def initialize_system(mode):
     # Instantiate a parallel child subprocess and data pipe
     parent_conn, child_conn = multiprocessing.Pipe()
     ipc_status_flag = multiprocessing.Value('i', 0)
-    realtime_process = multiprocessing.Process(target=run_system, args=(mode, child_conn, ipc_status_flag))
+    init_event = multiprocessing.Event()
+    error_event = multiprocessing.Event()
+    realtime_process = multiprocessing.Process(target=run_system, args=(mode, child_conn, ipc_status_flag, init_event, error_event))
     realtime_process.start()
+    
+    # realtime_process blocks until its initialization completes
+    init_event.wait()
         
     # Error handling for the run_system subprocess
-    # Kill process if errors occur during startup
     # Continue process if no errors occur and pin subprocess to dedicated core
-    if realtime_process.exitcode is None:
+    if (realtime_process.exitcode is None) and (not error_event.is_set()):
         print("System initialized successfully.")
         pid = realtime_process.pid
         p = psutil.Process(pid)
         p.cpu_affinity([REAL_TIME_CORE])  
         hardware_status = 0
-    elif realtime_process.exitcode == 1:
-        print("System initialization failed: Hardware initialization error.")
-        hardware_status = -1
-    elif realtime_process.exitcode == 2:
-        print("System initialization failed: Invalid mode.")
-        hardware_status = -2
-    elif realtime_process.exitcode == 3:
-        print("System initialization failed: Unexpected error.")
-        hardware_status = -3
+
+    # Send error return value if initialization fails
     else:
-        print("System initialization failed: Unknown error.")
-        hardware_status = -4
+        while (realtime_process.exitcode is None):
+            time.sleep(0.1)
 
-
-    # Assign realtime hardware to dedicate core
-    pid = realtime_process.pid
-    p = psutil.Process(pid)
-    p.cpu_affinity([REAL_TIME_CORE])  
+        if realtime_process.exitcode == 1:
+            print("System initialization failed: Hardware initialization error.")
+            hardware_status = -1
+        elif realtime_process.exitcode == 2:
+            print("System initialization failed: Invalid mode.")
+            hardware_status = -2
+        elif realtime_process.exitcode == 3:
+            print("System initialization failed: Unexpected error.")
+            hardware_status = -3
+        else:
+            print("System initialization failed: Unknown error.")
+            hardware_status = -4
 
     return parent_conn, realtime_process, hardware_status, ipc_status_flag
 
-def run_system(mode, pipe_conn, ipc_status_flag):
+def run_system(mode, pipe_conn, ipc_status_flag, init_event, error_event):
     """
     Motor control and environmental sensing subprocess.
     Process is killed if the hardware initialization fails.
@@ -115,16 +119,27 @@ def run_system(mode, pipe_conn, ipc_status_flag):
     try:
         if mode == 1:
             print("Starting hardware simulation...")
-            hardware = Hardware_Sim(conn = pipe_conn, ipc_status_flag = ipc_status_flag, initial_angle = TARGET_ANGLE_IC)
+            hardware = Hardware_Sim(
+                conn = pipe_conn, 
+                init_event = init_event,
+                error_event = error_event,
+                ipc_status_flag = ipc_status_flag, 
+                initial_angle = TARGET_ANGLE_IC)
         elif mode == 2:
-            hardware = Hardware_Control(conn = pipe_conn, ipc_status_flag = ipc_status_flag, initial_angle = TARGET_ANGLE_IC, motor_speed = 90, gpio_pins = [17, 27, 23, 24])
             print("Starting proximity sensing and motor control...")
+            hardware = Hardware_Control(
+                conn = pipe_conn, 
+                init_event = init_event,
+                error_event = error_event,
+                ipc_status_flag = ipc_status_flag, 
+                initial_angle = TARGET_ANGLE_IC, 
+                motor_speed = 90, 
+                gpio_pins = [17, 27, 23, 24]
+            )
         else:
             raise ValueError("Invalid mode")
     
-        print("Hardware initialization successful. Subprocess is now running.")
-    
-    except RuntimeError as e:
+    except (RuntimeError, OSError) as e:
         print(f"Hardware initialization error: {e}")
         os._exit(1)
     except ValueError as e:
@@ -134,13 +149,12 @@ def run_system(mode, pipe_conn, ipc_status_flag):
         print(f"Unexpected error: {e}")
         os._exit(3)
     
-def system_shutdown(pipe_conn, realtime_process, ipc_status_flag):
+def graceful_system_shutdown(pipe_conn, realtime_process, ipc_status_flag):
     '''
     Returns hardware to starting position
     Gracefully shuts down applications
     '''
     print("AI agent goal complete.  Exiting program.....")
-    #pipe_conn.send(TARGET_ANGLE_IC)
     time.sleep(1)
     
     while (ipc_status_flag.value != 2):
@@ -149,6 +163,10 @@ def system_shutdown(pipe_conn, realtime_process, ipc_status_flag):
     realtime_process.terminate()
     realtime_process.join()
     sys.exit(0)
+
+def emergency_shutdown():
+    print("Emergency shutdown invoked; Exiting program.....")
+    sys.exit(1)
 
 def initialize_agent(pipe_conn, args):
     """
@@ -187,6 +205,8 @@ def main():
 
     # Initialize the system and configure based on CLI arguments
     pipe_conn, realtime_process, hardware_status, ipc_status_flag = initialize_system(args.mode)
+    if hardware_status != 0:
+        emergency_shutdown()
     
     # Create AI agent and prompt the agent with initial instructions
     aiAgent = initialize_agent(pipe_conn, args)
@@ -223,7 +243,7 @@ def main():
         pipe_conn.send(aiAgent.angle)
     
     # Shut down application
-    system_shutdown(pipe_conn, realtime_process, ipc_status_flag)
+    graceful_system_shutdown(pipe_conn, realtime_process, ipc_status_flag)
 
 if __name__ == "__main__":
     main()

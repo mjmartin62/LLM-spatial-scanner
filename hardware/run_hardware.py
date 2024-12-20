@@ -7,7 +7,7 @@ from VL53L1_wrapper import ToF_Sensor
 from stepper_motor_control_wrapper import Stepper_Motor
 
 class Hardware_Control():
-    def __init__(self, conn, ipc_status_flag, i2c_bus = 1, i2c_addr = 0x29, gpio_pins = [0, 0, 0, 0], initial_angle = 0, motor_speed = 0):
+    def __init__(self, conn, init_event, error_event, ipc_status_flag, i2c_bus = 1, i2c_addr = 0x29, gpio_pins = [0, 0, 0, 0], initial_angle = 0, motor_speed = 0):
         self.pipe_conn = conn
         self._polling_period = 0.1
         self._sensor_all_data = None
@@ -23,14 +23,21 @@ class Hardware_Control():
         self._stepper_motor = None 
         self._tof = None
         self._ipc_status_flag = ipc_status_flag
+        self._init_event = init_event
+        self._error_event = error_event
+
 
         # Initialize and execute hardware control
         # Raise error to control process exit in calling function
         status = self._initialization()
-        if status == -1:
+        if status == 0:
+            self._init_event.set()
+            self._hardware_transition()
+        else:
+            self._error_event.set()
+            self._init_event.set()
             raise RuntimeError("Hardware initialization failed")
 
-        self._hardware_transition()
 
     def _initialization(self):
         '''
