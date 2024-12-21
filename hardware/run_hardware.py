@@ -7,7 +7,9 @@ from VL53L1_wrapper import ToF_Sensor
 from stepper_motor_control_wrapper import Stepper_Motor
 
 class Hardware_Control():
-    def __init__(self, conn, init_event, error_event, ipc_status_flag, i2c_bus = 1, i2c_addr = 0x29, gpio_pins = [0, 0, 0, 0], initial_angle = 0, motor_speed = 0):
+    def __init__(self, conn, init_event, error_event, shutdown_event, 
+                 ipc_status_flag, i2c_bus = 1, i2c_addr = 0x29, 
+                 gpio_pins = [0, 0, 0, 0], initial_angle = 0, motor_speed = 0):
         self.pipe_conn = conn
         self._polling_period = 0.1
         self._sensor_all_data = None
@@ -25,6 +27,7 @@ class Hardware_Control():
         self._ipc_status_flag = ipc_status_flag
         self._init_event = init_event
         self._error_event = error_event
+        self._shutdown_event = shutdown_event
 
 
         # Initialize and execute hardware control
@@ -119,7 +122,7 @@ class Hardware_Control():
         '''
         print("Shutting down all hardware...")
         self._stepper_motor.motor_stop()
-        self._ipc_status_flag.value = 2
+        self._shutdown_event.set()
 
 if __name__ == "__main__":
     pass

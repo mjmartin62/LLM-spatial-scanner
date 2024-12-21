@@ -7,7 +7,8 @@ import time
 import math
 
 class Hardware_Sim:
-    def __init__(self, conn, ipc_status_flag, init_event, error_event, geom_type="line", initial_angle=0):
+    def __init__(self, conn, shutdown_event, ipc_status_flag, init_event, 
+                 error_event, geom_type="line", initial_angle=0):
         self._geometry = geom_type
         self._angle = float(initial_angle)
         self._distance = round(float(10.00), 1)
@@ -15,6 +16,7 @@ class Hardware_Sim:
         self._ipc_status_flag = ipc_status_flag
         self._init_event = init_event
         self._error_event = error_event
+        self._shutdown_event = shutdown_event
         self.sim_line()
 
     # Getter for angle
@@ -73,6 +75,6 @@ class Hardware_Sim:
         Shut down and flag parent process it is safe to kill this subprocess
         '''
         print("Shutting down subprocess...")
-        self._ipc_status_flag.value = 2
+        self._shutdown_event.set()
 
         

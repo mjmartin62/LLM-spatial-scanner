@@ -36,11 +36,10 @@ class OpenAIAgent(AIBase):
             resp = chat_completion.choices[0].message.content
             print("OpenAI response:")
             print(resp)
-            self.comprehension = resp.lower()
+            self.comprehension = resp.lower().strip()
             ai_resp = {
                     "role": "assistant",
                     "content": resp,
-
             }
             self._context.append(ai_resp)
         except Exception as e:

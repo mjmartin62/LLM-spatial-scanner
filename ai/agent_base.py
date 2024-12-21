@@ -80,13 +80,13 @@ class AIBase:
     # Setter for ai agent comprehension state
     @comprehension.setter
     def comprehension(self, new_comprehension):
-        if (new_comprehension.lower() == "nok"):
+        if (new_comprehension == "nok"):
             self._comprehension = "nok"
             raise ValueError("AI agent does not understand")
-        elif (new_comprehension.lower().strip() == "ok"):
+        elif (new_comprehension == "ok"):
             self._comprehension = "ok"
         else:
-            self._comprehension = None
+            self._comprehension = new_comprehension
 
     # Getter for ai agent initial prompt
     @property
