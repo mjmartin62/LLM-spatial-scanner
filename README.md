@@ -1,10 +1,10 @@
 # LLM-spatial-scanner; Raspberry Pi Motor Control and AI Integration Project
-Discover how an LLM interacts with a planar spatial environment
+Discover how an LLM interacts with a planar spatial environment.
 
 ## Features
 - Real-time motor control using Raspberry Pi GPIO.
-- AI decision-making for obstacle avoidance and angle optimization.
-- Modular Python codebase with support for extensibility.
+- AI decision-making for obstacle location identification.
+- Modular Python codebase with support for extensibility:  Additional LLMs, LLM Prompts, Motor/Actuator and Sensor Types
 
 ## Hardware Requirements
  - Raspberry Pi 4B (or compatible model running a Linux embedded system)
@@ -12,7 +12,7 @@ Discover how an LLM interacts with a planar spatial environment
  - Any bipolar hybrid steppor motor with compatible dual H-bridge hardware
 
 ## Software Requirements
- - Python 3.11 or greater
+ - Python 3.7 or greater
 
 ## Firmware Requirements
  - Update Linux OS kernel boot parameters under /boot/cmdline.txt with flag isolcpus=<cpu core>
