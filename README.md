@@ -1,7 +1,8 @@
 # LLM Spatial Environment Interaction: Raspberry Pi Motor Control and AI Integration Project
 This project explores integrating Large Language Models (LLMs) with embedded systems for spatial environment interaction. It combines real-time hardware control and LLMs where hardware control is dicated by the LLM.
 
-### Video Demo:  <URL HERE>
+### Video Demo:  
+https://youtu.be/ivJ1DE5Cfm4
 
 ### Introduction:
 This project demonstrates the development of an embedded Linux Python application that integrates physical hardware with a Large Language Model (LLM). LLMs are unique AI models trained on vast and diverse text datasets, enabling them to perform abstract and generalized reasoning.
@@ -16,7 +17,10 @@ The goal of this project is to explore how LLMs can be used to reason about and 
  - Custom C-Library and API: Created a reusable C-library with a documented API to facilitate seamless hardware control and integration.
  - Python-C Interoperability: Developed Python wrappers for C-libraries, enabling higher-level abstractions for hardware interactions and improving usability.
 
-### Key findings:
+### Key findings (To Date):
+ - The LLM search path for finding the closest object varies significantly depending on the environment and prompt.  In some instances, a classic bisection method is invoked, whereas some instances appear to mimic a random search path.
+ - The LLM will often restrict its search field, even when a +/- 90° field of view is explicitly mentioned in the initial prompt.  These instances mimic a local minima convergence where a global search method would be more appropriate.
+ - The LLM has significant trouble associating the sequence of data it collects and the corresponding angle/measured distance data pair.  Significant time was spent developing the prompt to ensure the LLM understands data coherence in a spatial setting.
 
 ### Extensible Features:
  - LLM model type
@@ -24,12 +28,22 @@ The goal of this project is to explore how LLMs can be used to reason about and 
  - Hardware unit types including Motor/Actuator and proximity sensors
  - Spatial simulation mode geometry (See usage)
 
-### Hardware Requirements:
+### Hardware Requirements and System Design:
  - Raspberry Pi 4B (or compatible single board computer running a Linux embedded system)
  - ST vl53l1x Time of Flight Sensor
  - Any bipolar hybrid steppor motor, 1.8° step resolution, with compatible dual H-bridge hardware
 
-![Hardware Setup](images/hardware_setup.jpg "Stepper Motor and Sensor Configuration")
+![Hardware Setup](images/hardware_setup.JPG "Stepper Motor and Sensor Configuration")
+
+*Figure 1: Stepper Motor and Sensor Configuration*
+
+![Spatial Environment](images/hardware_environment_example.JPG "Example Spatial Environment Scenario")
+
+*Figure 2: Spatial Environment Example (2 Obstacles)*
+
+![State Machine](images/system_state_machine.JPG "High Level System State Machine")
+
+*Figure 3: System State Machine*
 
 ### Software Requirements:
  - Python 3.7 or greater
